@@ -736,12 +736,6 @@ echo 192.168.99.100   purple.demo.com >> /etc/hosts
 brew install kubernetes-helm
 ```
 
-下載完後，我們記得要 Helm 把 Cluster 配置初始化
-
-```
-helm init
-```
-
 接下來讓我們安裝 Wordpress 的 [Chart](https://github.com/helm/charts/tree/master/stable/wordpress)，我們可以直接透過指令
 
 ```

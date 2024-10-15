@@ -889,6 +889,8 @@ replicaCount: 2
 image:
   repository: hcwxd/blue-whale
 
+containerPort: 3000
+
 service:
   type: NodePort
   port: 80
@@ -898,7 +900,12 @@ ingress:
 
   hosts:
     - host: blue.demo.com
-      paths: [/]
+      paths:
+        - path: /
+          pathType: Exact
+
+autoscaling:
+  enabled: true
 ```
 
 把參數提取出來後，我們就來依樣畫葫蘆地把 `template` 中其他三個 `yaml` 檔寫成可以接受參數的方式：
@@ -909,19 +916,21 @@ ingress:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: { { include "value-helm-demo.fullname" . } }
+  name: {{ include "value-helm-demo.fullname" . }}
 spec:
-  replicas: { { .Values.replicaCount } }
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
   selector:
     matchLabels:
-      app: { { include "value-helm-demo.fullname" . } }
+      app: {{ include "value-helm-demo.fullname" . }}
   template:
     metadata:
       labels:
-        app: { { include "value-helm-demo.fullname" . } }
+        app: {{ include "value-helm-demo.fullname" . }}
     spec:
       containers:
-        - name: { { .Chart.Name } }
+        - name: {{ .Chart.Name }}
           image: '{{ .Values.image.repository }}'
           ports:
             - containerPort: 3000
@@ -933,15 +942,15 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: { { include "value-helm-demo.fullname" . } }
+  name: {{ include "value-helm-demo.fullname" . }}
 spec:
-  type: { { .Values.service.type } }
+  type: {{ .Values.service.type }}
   ports:
-    - port: { { .Values.service.port } }
+    - port: {{ .Values.service.port }}
       targetPort: 3000
       protocol: TCP
   selector:
-    app: { { include "value-helm-demo.fullname" . } }
+    app: {{ include "value-helm-demo.fullname" . }}
 ```
 
 `ingress.yaml`
@@ -955,23 +964,35 @@ metadata:
   name: {{ $fullName }}
 spec:
   rules:
-  {{- range .Values.ingress.hosts }}
+    {{- range .Values.ingress.hosts }}
     - host: {{ .host | quote }}
       http:
         paths:
-        {{- range .paths }}
-          - backend:
-              serviceName: {{ $fullName }}
-              servicePort: 80
-        {{- end }}
-  {{- end }}
+          {{- range .paths }}
+          - path: {{ .path }}
+            {{- with .pathType }}
+            pathType: {{ . }}
+            {{- end }}
+            backend:
+              service:
+                name: {{ include "helm-demo.fullname" $ }}
+                port:
+                  number: {{ $.Values.service.port }}
+          {{- end }}
+    {{- end }}
 {{- end }}
 ```
 
-寫好後，我們就可以來一鍵部署我們的這三份檔案囉。我們可以直接在 `/helm-demo` 資料夾下輸入指令
+寫好後，我們就可以來一鍵部署我們的這三份檔案囉。我們可以直接在 `/helm-demo` 資料夾下輸入指令 `helm install <RELEASE_NAME> .`
 
 ```
-helm install .
+helm install helm-demo .
+```
+
+or
+
+```
+helm install . --generate-name
 ```
 
 ```
@@ -1032,10 +1053,8 @@ replicaset.apps/gilded-peacock-helm-demo-5fc5964759   2         2         2     
 而其他常用的 Helm 指令還有：
 
 ```
-helm delete --purge RELEASE_NAME
+helm uninstall RELEASE_NAME
 ```
-
-刪除一個 release（`--purge` 這個 flag 可以把該 `RELEASE_NAME` 釋放出來讓之後可以重複使用）。
 
 ```
 helm upgrade RELEASE_NAME CHART_PATH

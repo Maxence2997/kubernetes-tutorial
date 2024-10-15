@@ -460,7 +460,7 @@ kubectl edit deployments my-deployment
 接著我們會看到我們的 Yaml 檔
 
 ```yaml
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
@@ -541,7 +541,7 @@ kubectl rollout history deployment my-deployment
 看到我們目前更改過的版本
 
 ```
-deployment.extensions/my-deployment
+deployment.apps/my-deployment
 REVISION  CHANGE-CAUSE
 1         <none>
 2         <none>
@@ -574,7 +574,7 @@ kubectl rollout undo deploy my-deployment --to-revision=2
 `deployment.yaml`
 
 ```yaml
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: blue-nginx
@@ -593,7 +593,7 @@ spec:
 
 ---
 
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: purple-nginx
@@ -670,24 +670,32 @@ purple-service   NodePort    10.107.21.77     <none>        80:32086/TCP   60s
 `ingress.yaml`
 
 ```yaml
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: web
+  name: reverse-proxy-ingress
 spec:
   rules:
     - host: blue.demo.com
       http:
         paths:
-          - backend:
-              serviceName: blue-service
-              servicePort: 80
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: blue-service
+                port:
+                  number: 80
     - host: purple.demo.com
       http:
         paths:
-          - backend:
-              serviceName: purple-service
-              servicePort: 80
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: purple-service
+                port:
+                  number: 80
 ```
 
 我們一樣透過 `kubectl create -f ingress.yaml` 來建立我們的 ingress 物件。並使用 `kubectl get ingress` 來查看我們的 ingress 狀況：
@@ -825,7 +833,7 @@ helm create helm-demo
 `deployment.yaml`
 
 ```yaml
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: blue-nginx
@@ -863,7 +871,7 @@ spec:
 `ingress.yaml`
 
 ```yaml
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: web
@@ -947,7 +955,7 @@ spec:
 ```yaml
 {{- if .Values.ingress.enabled -}}
 {{- $fullName := include "value-helm-demo.fullname" . -}}
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ $fullName }}
